@@ -30,6 +30,8 @@ venv.bak/
 
 # FastAPI / Starlette
 *.log
+*.db
+*.sqlite3
 
 # pytest
 .pytest_cache/
