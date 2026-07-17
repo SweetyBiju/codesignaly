@@ -13,13 +13,15 @@ app = FastAPI(title="CodeSignaly API")
 # Add CORS middleware for extension communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Registers /chat/stream and /chat/clear
 app.include_router(chat.router)
+
 
 @app.get("/health")
 def health_check():

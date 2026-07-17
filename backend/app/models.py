@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 import datetime
 import uuid
+from datetime import timezone
 
 from .database import Base
 
@@ -10,7 +11,7 @@ class Session(Base):
 
     session_id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     problem_slug = Column(String, index=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(timezone.utc))
 
     messages = relationship("Message", back_populates="session", cascade="all, delete-orphan")
 
@@ -22,6 +23,6 @@ class Message(Base):
     session_id = Column(String, ForeignKey("sessions.session_id"), nullable=False)
     role = Column(String, nullable=False)  # "user" or "assistant"
     content = Column(Text, nullable=False)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.datetime.now(timezone.utc))
 
     session = relationship("Session", back_populates="messages")
