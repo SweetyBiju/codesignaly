@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="header">
+        <h2>🎯 LeetCode AI Coach</h2>
+    </div>
+    
+    <div class="stats-bar">
+        <div class="stat">
+            <span class="label">Sessions</span>
+            <span class="value" id="total-sessions">0</span>
+        </div>
+        <div class="stat">
+            <span class="label">Streak</span>
+            <span class="value" id="streak-count">0d</span>
+        </div>
+    </div>
+    
+    <div class="section-title" id="weakspots-title" style="display: none;">
+        ⚠️ WEAK SPOTS
+    </div>
+    <div id="weakspots-container"></div>
+    
+    <div class="section-title">
+        📈 PATTERN MASTERY
+    </div>
+    <div id="mastery-container"></div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

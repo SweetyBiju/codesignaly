@@ -1,0 +1,29 @@
+<div id="lc-ai-sidebar-container">
+  <div class="sidebar-header">
+    🎯 AI Interview Coach
+    <div id="problem-info">Loading...</div>
+  </div>
+  <div class="sidebar-body">
+    <div id="setup-view">
+      <button id="start-session-btn" disabled>Start Session</button>
+    </div>
+    <div id="chat-view" style="display: none;">
+      <div id="chat-history"></div>
+      <div class="chat-controls">
+        <textarea id="chat-input" placeholder="Type your response..."></textarea>
+        <div class="button-row">
+          <button id="send-btn">Send</button>
+          <button id="hint-btn">Hint</button>
+          <button id="end-btn" class="danger">End</button>
+        </div>
+      </div>
+    </div>
+    <div id="outcome-view" style="display: none;">
+      <h3>Session Ended</h3>
+      <p>How did you do?</p>
+      <button class="outcome-btn" data-outcome="success">Success</button>
+      <button class="outcome-btn" data-outcome="partial">Partial</button>
+      <button class="outcome-btn" data-outcome="failed">Failed</button>
+    </div>
+  </div>
+</div>
