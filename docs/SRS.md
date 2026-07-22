@@ -1,566 +1,488 @@
-```markdown
-# Software Requirements Specification (SRS)
+# Software Requirements Specification
+## LeetCode AI Interview Coach — Chrome Extension
 
-# CodeSignaly – AI-Powered LeetCode Tutor
-
----
-
-# 1. Introduction
-
-## 1.1 Purpose of the Document
-
-This Software Requirements Specification (SRS) defines the functional and non-functional requirements for **CodeSignaly**, an AI-powered tutoring system designed to help developers improve their problem-solving skills while practicing coding interview questions on LeetCode.
-
-The purpose of this document is to provide a clear roadmap for the design, development, testing, and deployment of the application. It serves as a reference for developers, testers, project evaluators, and future contributors by documenting how the system is expected to behave, what technologies will be used, and what constraints must be followed throughout development.
-
-Rather than acting as another AI solution that simply provides answers, CodeSignaly focuses on creating an interactive learning environment where users are guided toward solving problems independently.
+**Version:** 1.0  
+**Author:** [Your Name]  
+**Date:** July 2026  
+**Status:** Draft
 
 ---
 
-## 1.2 Business Idea and Implementation Strategy
+## Table of Contents
 
-Many existing AI coding assistants solve programming problems instantly by generating complete solutions. While convenient, this often encourages dependency rather than learning.
-
-CodeSignaly approaches this problem differently by implementing an AI tutor that follows the **Socratic method**. Instead of revealing the final solution, the system asks guiding questions, points out logical flaws, discusses edge cases, and encourages users to think critically before arriving at the answer.
-
-The application follows a **hybrid architecture**, consisting of:
-
-- A **Chrome Browser Extension** (Manifest V3) acting as the frontend.
-- A **Python FastAPI** backend handling requests and maintaining conversation history.
-- A **local Large Language Model (LLM)** running through Ollama for AI inference.
-
-By running the AI model locally, the project eliminates recurring API costs while ensuring that users' code, conversations, and browsing data remain entirely on their own machines.
+1. [Introduction](#1-introduction)
+2. [Overall Description](#2-overall-description)
+3. [Functional Requirements](#3-functional-requirements)
+4. [Non-Functional Requirements](#4-non-functional-requirements)
+5. [System Architecture](#5-system-architecture)
+6. [Data Models](#6-data-models)
+7. [API Specification](#7-api-specification)
+8. [User Flows](#8-user-flows)
+9. [Constraints and Assumptions](#9-constraints-and-assumptions)
 
 ---
 
-## 1.3 Scope of the Project
+## 1. Introduction
 
-The scope of CodeSignaly includes designing and implementing a complete AI tutoring ecosystem capable of understanding the user's coding context directly from the browser.
+### 1.1 Purpose
 
-The project includes:
+This document specifies the requirements for **LeetCode AI Interview Coach**, a Chrome Extension that transforms passive LeetCode grinding into an active, structured interview simulation experience. It is intended to serve as a reference for design, implementation, and evaluation of the system.
 
-- Developing a Chrome Extension capable of reading LeetCode problem information.
-- Extracting the current problem statement, constraints, examples, and code editor contents.
-- Creating a FastAPI backend responsible for prompt construction and conversation management.
-- Maintaining conversational memory using SQLite.
-- Integrating a locally hosted LLM through Ollama.
-- Building a responsive chat interface inside Chrome's Side Panel.
-- Supporting both guided tutoring and direct explanation modes.
-- Implementing prompt engineering techniques to ensure educational responses rather than direct code generation.
+### 1.2 Problem Statement
 
-The project does **not** include:
+Developers preparing for technical interviews face three compounding problems:
 
-- Automatic code submission.
-- **Automating code submissions or modifying the native LeetCode grading UI.**
-- Cloud-based AI services.
-- User account management.
-- Online synchronization of conversations.
+| # | Problem | Root Cause |
+|---|---------|------------|
+| 1 | Knowledge decay — patterns solved once are forgotten | No structured revisiting |
+| 2 | Blind self-assessment — no visibility into actual weak spots | No cross-session tracking |
+| 3 | Poor interview readiness — solving alone ≠ solving under pressure | No simulation of real interview conditions |
 
----
+Existing tools (ChatGPT on tab, NeetCode, etc.) solve none of these because they are **stateless** — they don't know the user across sessions.
 
-## 1.4 Overview of the Product
+### 1.3 Proposed Solution
 
-CodeSignaly is designed as a lightweight Chrome Extension that activates whenever a user opens a LeetCode problem.
+A stateful Chrome Extension + Python backend that:
+- Injects an AI mock interviewer sidebar directly into LeetCode problem pages
+- Tracks every session, logging patterns, hints used, and outcomes
+- Builds a per-user mastery profile across DSA patterns over time
+- Surfaces weak spots proactively before they become interview liabilities
 
-Instead of switching between browser tabs or opening external AI tools, users can interact with an intelligent tutor directly inside the browser through a dedicated side panel.
+### 1.4 Scope
 
-The extension automatically understands the context of the current problem by collecting:
+**In scope:**
+- Chrome Extension (Manifest V3)
+- FastAPI Python backend
+- SQLite local database
+- Gemini API integration for AI interviewer
+- LeetCode GraphQL API integration for problem extraction
+- Pattern mastery tracking
+- Weak spot detection and alerts
+- Session dashboard (popup)
 
-- Problem title
-- Difficulty
-- Description
-- Constraints
-- Examples
-- User's current source code
+**Out of scope (deferred):**
+- Skill tree / pattern unlock progression
+- Multi-user / cloud sync
+- Mobile support
+- Boss Battle mode
+- Gamification beyond pattern mastery
 
-Whenever the user asks for help, this contextual information is combined with the conversation history and sent to the local AI model.
+### 1.5 Definitions and Acronyms
 
-The AI responds by encouraging analytical thinking instead of revealing the answer, making the learning experience similar to working with a real mentor.
-
----
-
-# 2. General Description of the Project
-
-## 2.1 Overall Architecture
-
-CodeSignaly follows a modular three-layer architecture to ensure maintainability, scalability, and separation of responsibilities.
-
-### Client Layer
-
-The frontend consists of a Chrome Extension built using HTML, CSS, and JavaScript under the Manifest V3 specification.
-
-Its responsibilities include:
-
-- Rendering the user interface
-- Opening the Chrome Side Panel
-- Extracting problem information from the DOM
-- Reading the Monaco Editor contents
-- Sending requests to the backend
-- Streaming AI responses to the interface
+| Term | Definition |
+|------|-----------|
+| DSA | Data Structures and Algorithms |
+| LLM | Large Language Model |
+| Pattern | A recurring algorithmic approach (e.g., Sliding Window, DP, BFS) |
+| Session | A single problem-solving attempt tracked by the extension |
+| Mastery Score | A computed score (0–100) representing competence in a given pattern |
+| Weak Spot | A pattern with low mastery score or long inactivity period |
+| BYOK | Bring Your Own Key — users supply their own API key |
 
 ---
 
-### Backend Layer
+## 2. Overall Description
 
-The backend is implemented using FastAPI.
+### 2.1 Product Perspective
 
-Its primary responsibilities include:
+The system has three layers that work together:
 
-- Managing API endpoints
-- Creating and maintaining chat sessions
-- Constructing prompts
-- Storing conversation history
-- Interacting with SQLite
-- Communicating with the local AI model
-
-This layer acts as the bridge between the browser extension and the LLM.
-
----
-
-### AI Layer
-
-The AI engine consists of a locally hosted language model running through Ollama.
-
-Possible supported models include:
-
-- Llama 3 8B
-- DeepSeek Coder
-- CodeGemma
-- Mistral
-
-The AI model receives structured prompts generated by the backend and produces tutoring responses in real time.
-
----
-
-## 2.2 Core Functionalities
-
-The system provides several integrated features that work together to create an effective learning environment.
-
-### Automated Context Extraction
-
-The extension automatically extracts:
-
-- Problem title
-- Difficulty level
-- Full problem statement
-- Constraints
-- Input/output examples
-- Current code inside the Monaco editor
-
-This eliminates the need for users to manually copy and paste problem descriptions.
-
----
-
-### Context-Aware Tutoring
-
-The AI uses the extracted information along with previous conversation history to generate responses that remain relevant throughout the session.
-
-Rather than restarting the conversation after every message, the AI understands:
-
-- Previous hints
-- User explanations
-- Attempted approaches
-- Existing code
-
-This creates a more natural tutoring experience.
-
----
-
-### Context Management
-
-To ensure reliable performance with local language models that have limited context windows, the backend shall manage the amount of information sent to the AI during each request.
-
-The system will monitor the total prompt size and, when necessary:
-
-- Truncate older conversation messages.
-- Summarize earlier parts of the conversation while preserving important context.
-- Prioritize the current problem description, latest source code, and most recent interactions.
-
-This mechanism prevents exceeding the model's context window while maintaining a coherent tutoring experience.
-
----
-
-### Dual Learning Modes
-
-The application provides two interaction modes.
-
-**Tutor Mode**
-
-- Gives hints
-- Asks leading questions
-- Discusses time complexity
-- Explains concepts
-- Encourages problem-solving
-
-**Direct Mode**
-
-When users simply want to revise a topic quickly, Direct Mode provides:
-
-- Concise explanations
-- Algorithm summaries
-- Markdown notes
-- Educational resources
-- Video recommendations
-
----
-
-## 2.3 Intended Users
-
-The application is designed for learners across different experience levels.
-
-Primary users include:
-
-- Computer Science students
-- Coding interview candidates
-- Competitive programmers
-- Software engineering interns
-- Professional developers preparing for technical interviews
-
-Users are expected to have basic programming knowledge but may require assistance in algorithm design, optimization techniques, and debugging strategies.
-
----
-
-## 2.4 Target Platform and Distribution
-
-The application is intended for desktop environments using Google Chrome or Chromium-based browsers.
-
-The primary distribution platform will be the Chrome Web Store.
-
-The backend and AI model are installed locally by the user, allowing the extension to operate without dependence on external AI services.
-
----
-
-## 2.5 Key Features and Benefits
-
-CodeSignaly emphasizes learning rather than solution generation.
-
-Major benefits include:
-
-- Encourages independent problem-solving
-- Preserves user privacy through local execution
-- Eliminates recurring AI API costs
-- Provides conversational tutoring instead of static hints
-- Maintains long-term context during discussions
-- Offers flexible learning modes depending on user needs
-
----
-
-# 3. Functional Requirements
-
-## 3.1 System Workflow
-
-The expected workflow is designed to minimize user interaction while maximizing contextual understanding.
-
-### Typical User Flow
-
-1. User opens a LeetCode problem.
-2. User launches the Chrome extension.
-3. The side panel opens automatically.
-4. The extension extracts the problem statement and current source code.
-5. The user asks a question.
-6. The backend retrieves previous conversation history.
-7. A structured prompt is generated.
-8. The prompt is sent to the local LLM.
-9. The AI streams its response back to the side panel.
-10. The conversation is stored for future context.
-
----
-
-## 3.2 Functional Modules
-
-### Problem Extraction Module
-
-Responsibilities include:
-
-- Reading DOM elements
-- Extracting metadata
-- Monitoring code changes
-- Identifying the current problem
-
----
-
-### Chat Management Module
-
-Responsible for:
-
-- Creating sessions
-- Loading previous messages
-- Maintaining conversational memory
-- Clearing conversations when requested
-
----
-
-### Prompt Generation Module
-
-The backend constructs structured prompts containing:
-
-- Problem context
-- Current source code
-- Previous conversation
-- Active tutoring mode
-- System instructions
-
-This ensures that the AI always has sufficient context before generating a response.
-
----
-
-### AI Response Module
-
-The backend communicates with Ollama and streams generated responses using Server-Sent Events (SSE).
-
-Streaming provides a smoother user experience by displaying tokens as they are generated.
-
----
-
-## 3.3 Database Design
-
-SQLite is used as the local persistence layer because it is lightweight, portable, and requires no additional server setup.
-
-### Sessions Table
-
-| Field | Description |
-|--------|-------------|
-| session_id | Primary key |
-| problem_slug | Unique problem identifier |
-| created_at | Session creation timestamp |
-
----
-
-### Messages Table
-
-| Field | Description |
-|--------|-------------|
-| message_id | Primary key |
-| session_id | Foreign key |
-| role | User or Assistant |
-| content | Message text |
-| timestamp | Creation time |
-
----
-
-### Processing Logic
-
-Whenever a user submits a message:
-
-1. Current problem information is extracted.
-2. Current source code is collected.
-3. Previous conversation history is loaded.
-4. The backend constructs the final prompt.
-5. The LLM generates a response.
-6. Both user and assistant messages are stored in SQLite.
-
----
-
-## 3.4 Development Phases
-
-The project will be completed in multiple stages.
-
-### Phase 1 – Environment Setup
-
-- Create project structure
-- Configure FastAPI
-- Initialize Chrome Extension
-- Install Ollama
-
----
-
-### Phase 2 – Browser Integration
-
-- DOM scraping
-- Monaco editor extraction
-- Side Panel implementation
-
----
-
-### Phase 3 – Backend Development
-
-- SQLite integration
-- Session management
-- API development
-- SSE implementation
-
----
-
-### Phase 4 – AI Prompt Engineering
-
-- Tutor Mode prompts
-- Direct Mode prompts
-- Prompt injection resistance
-- Response quality testing
-
----
-
-### Phase 5 – UI Refinement
-
-- Markdown rendering
-- Improved responsiveness
-- User experience enhancements
-- Chrome Web Store preparation
-
----
-
-# 4. Non-Functional Requirements
-
-## 4.1 Performance
-
-The system should provide responsive interactions despite running a local language model.
-
-Performance goals include:
-
-- Backend startup within a few seconds.
-- Chat response initiation within approximately 2–5 seconds on supported hardware.
-- Smooth token-by-token streaming of AI responses.
-- Minimal memory usage by the browser extension.
-- Efficient context management to ensure prompts remain within the supported token limit of the selected local language model.
-
----
-
-## 4.2 Security
-
-Security is achieved through local execution and restricted browser permissions.
-
-Key requirements include:
-
-- Manifest V3 compliance.
-- No remote code execution.
-- Communication restricted to localhost.
-- Secure handling of browser permissions.
-- Sanitization of all user inputs before prompt construction.
-
----
-
-## 4.3 Privacy
-
-User privacy is a primary design objective.
-
-The system shall:
-
-- Avoid collecting analytics.
-- Avoid transmitting source code externally.
-- Store conversations only on the user's machine.
-- Operate without requiring user accounts.
-
----
-
-## 4.4 Reliability
-
-The application should continue functioning reliably under normal operating conditions.
-
-Requirements include:
-
-- Graceful handling of backend failures.
-- Automatic reconnection when the backend restarts.
-- Protection against corrupted SQLite sessions.
-- Recovery from interrupted AI responses.
-
----
-
-## 4.5 Availability
-
-The application requires internet connectivity only for accessing LeetCode.
-
-Once the webpage has loaded:
-
-- FastAPI
-- SQLite
-- Ollama
-
-operate locally, allowing AI tutoring to continue independently of cloud services.
-
----
-
-## 4.6 Prompt Safety
-
-To preserve the educational purpose of the application, the backend should prevent attempts to manipulate the AI into revealing complete solutions.
-
-Measures include:
-
-- Strong system prompts
-- Instruction hierarchy
-- Prompt sanitization
-- Conversation formatting
-- Input validation
-
----
-
-# 5. Interface Requirements
-
-## 5.1 Browser Interface
-
-The extension interacts with Chrome using official browser APIs.
-
-These include:
-
-- `chrome.tabs`
-- `chrome.runtime`
-- `chrome.storage`
-- `chrome.scripting`
-- `chrome.sidePanel`
-
-These APIs enable secure interaction with browser tabs while maintaining compliance with Manifest V3.
-
----
-
-## 5.2 Backend Interface
-
-Communication between the extension and backend occurs through HTTP requests over localhost.
-
-Primary endpoints include:
-
-| Endpoint | Purpose |
-|----------|----------|
-| POST /chat/stream | Send user messages and stream AI responses |
-| POST /clear | Clear conversation |
-| GET /health | Backend health check |
-
-Server-Sent Events (SSE) are used for streaming responses in real time.
-
----
-
-## 5.3 AI Interface
-
-The backend communicates with Ollama using its REST API.
-
-Typical workflow:
-
-1. Build prompt.
-2. Send request to Ollama.
-3. Receive streamed tokens.
-4. Forward tokens to the browser.
-5. Save conversation history.
-
----
-
-## 5.4 User Interface
-
-The primary interface is a responsive Chrome Side Panel.
-
-The interface includes:
-
-- Chat window
-- Scrollable conversation history
-- Markdown rendering
-- Code formatting
-- Message timestamps
-- Loading indicators
-
-Messages are visually separated into user and tutor responses to improve readability.
-
----
-
-## 5.5 User Controls
-
-The interface provides a minimal set of controls to keep interactions simple and distraction-free.
-
-Available controls include:
-
-- **Tutor Mode** – Enables guided, Socratic-style assistance through hints and questions.
-- **Direct Mode** – Provides concise explanations, reference material, or learning resources.
-- **Clear Chat** – Deletes the current conversation history for the active problem.
-- **New Session** – Starts a fresh tutoring session while preserving previous sessions in the database.
-- **Connection Status** – Displays the availability of the local FastAPI server and AI model.
-
-These controls allow users to adapt the tutoring experience based on their learning preferences while keeping the interface intuitive and easy to navigate.
-
----
 ```
+┌─────────────────────────────────────────────────────────┐
+│                  Chrome Extension                        │
+│   Content Script │ Sidebar UI │ Popup Dashboard          │
+└─────────────────────────┬───────────────────────────────┘
+                          │ HTTP (localhost)
+┌─────────────────────────▼───────────────────────────────┐
+│                  Python Backend (FastAPI)                 │
+│  LeetCode Service │ AI Service │ Session Service          │
+│  Analytics Service                                        │
+└──────────┬───────────────────────────┬──────────────────┘
+           │                           │
+┌──────────▼──────┐         ┌──────────▼──────────────────┐
+│  SQLite Database │         │  External APIs               │
+│  (local)         │         │  LeetCode GraphQL            │
+└──────────────────┘         │  Gemini API                  │
+                             └─────────────────────────────┘
+```
+
+### 2.2 User Characteristics
+
+**Primary User:** A software developer (intermediate level) actively preparing for technical interviews at tech companies. They are already familiar with LeetCode and use it daily. They do not need to be taught what DSA is — they need to be pushed to practice more effectively.
+
+### 2.3 Operating Environment
+
+- Chrome browser (v100+)
+- Python 3.10+ running locally
+- localhost:8000 backend (dev mode)
+- Internet connection (for LeetCode GraphQL + Gemini API)
+
+---
+
+## 3. Functional Requirements
+
+### 3.1 Problem Detection and Extraction
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-01 | The extension SHALL detect when the user navigates to a LeetCode problem page | Must Have |
+| FR-02 | The extension SHALL extract the problem slug from the URL | Must Have |
+| FR-03 | The backend SHALL fetch problem metadata (title, difficulty, tags) from LeetCode GraphQL API | Must Have |
+| FR-04 | The backend SHALL map LeetCode tags to internal DSA pattern categories | Must Have |
+| FR-05 | Extracted problem data SHALL be cached in SQLite to avoid repeat API calls | Should Have |
+
+### 3.2 AI Mock Interviewer (Sidebar)
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-06 | The extension SHALL inject a collapsible sidebar UI on LeetCode problem pages | Must Have |
+| FR-07 | The user SHALL be able to start an interview session from the sidebar | Must Have |
+| FR-08 | The AI SHALL act as an interviewer, asking questions rather than giving answers | Must Have |
+| FR-09 | The AI SHALL ask follow-up questions based on the user's responses | Must Have |
+| FR-10 | The AI SHALL never provide code solutions directly | Must Have |
+| FR-11 | The AI SHALL offer hints only when the user explicitly requests one | Must Have |
+| FR-12 | The sidebar SHALL display the conversation history in a chat-like interface | Must Have |
+| FR-13 | The user SHALL be able to end a session and submit a self-assessed outcome | Must Have |
+
+### 3.3 Session Logging
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-14 | Every session SHALL be logged with: problem ID, start time, end time, hints used, outcome | Must Have |
+| FR-15 | Time elapsed during a session SHALL be tracked automatically | Must Have |
+| FR-16 | The backend SHALL update pattern mastery scores after every session | Must Have |
+
+### 3.4 Pattern Mastery
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-17 | The system SHALL maintain a mastery score (0–100) per DSA pattern | Must Have |
+| FR-18 | Mastery score SHALL increase on successful sessions and decrease on failed ones | Must Have |
+| FR-19 | The dashboard popup SHALL display mastery scores per pattern as a visual bar | Must Have |
+| FR-20 | Patterns SHALL be color-coded by mastery level (red / yellow / green) | Should Have |
+
+### 3.5 Weak Spot Detection and Alerts
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-21 | The system SHALL flag a pattern as a weak spot if mastery score < 40 | Must Have |
+| FR-22 | The system SHALL flag a pattern as a weak spot if not practiced in > 7 days | Must Have |
+| FR-23 | Weak spot alerts SHALL appear in the extension popup | Must Have |
+| FR-24 | Alerts SHALL include: pattern name, last practiced date, current mastery score | Must Have |
+| FR-25 | The extension icon badge SHALL update to show number of active weak spots | Should Have |
+
+### 3.6 Dashboard Popup
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-26 | The popup SHALL show total sessions completed | Must Have |
+| FR-27 | The popup SHALL show pattern mastery grid | Must Have |
+| FR-28 | The popup SHALL show active weak spot alerts | Must Have |
+| FR-29 | The popup SHALL show a streak counter (days with at least one session) | Should Have |
+
+---
+
+## 4. Non-Functional Requirements
+
+| ID | Category | Requirement |
+|----|----------|-------------|
+| NFR-01 | Performance | Sidebar SHALL inject within 500ms of page load |
+| NFR-02 | Performance | AI response SHALL arrive within 5 seconds |
+| NFR-03 | Reliability | Backend SHALL handle LeetCode API failures gracefully with error messages |
+| NFR-04 | Security | Gemini API key SHALL be stored in backend `.env`, never exposed to the extension |
+| NFR-05 | Usability | The sidebar SHALL be collapsible and not obstruct the problem description |
+| NFR-06 | Usability | The extension SHALL work without requiring user login/account creation |
+| NFR-07 | Maintainability | Backend routes SHALL be modular (one file per service) |
+| NFR-08 | Portability | Backend SHALL run on Windows, Mac, and Linux without modification |
+
+---
+
+## 5. System Architecture
+
+### 5.1 High-Level Architecture
+
+```mermaid
+graph TB
+    subgraph EXT["Chrome Extension (Manifest V3)"]
+        CS["Content Script<br/>(sidebar injector)"]
+        POP["Popup<br/>(dashboard)"]
+        BG["Background<br/>Service Worker"]
+    end
+
+    subgraph BE["Python Backend (FastAPI — localhost:8000)"]
+        LCS["LeetCode Service<br/>/problem/{slug}"]
+        AIS["AI Service<br/>/chat"]
+        SS["Session Service<br/>/session"]
+        ANS["Analytics Service<br/>/mastery, /weakspots"]
+    end
+
+    subgraph DB["SQLite Database"]
+        P["problems"]
+        S["sessions"]
+        PM["pattern_mastery"]
+    end
+
+    subgraph EXT_API["External APIs"]
+        LC["LeetCode GraphQL API"]
+        GEM["Gemini API"]
+    end
+
+    CS -->|"fetch problem, start session"| BG
+    POP -->|"fetch stats"| BG
+    BG -->|HTTP requests| LCS
+    BG -->|HTTP requests| AIS
+    BG -->|HTTP requests| SS
+    BG -->|HTTP requests| ANS
+
+    LCS -->|GraphQL query| LC
+    AIS -->|prompt + history| GEM
+    LCS --> DB
+    SS --> DB
+    ANS --> DB
+```
+
+### 5.2 Component Descriptions
+
+| Component | Technology | Responsibility |
+|-----------|-----------|----------------|
+| Content Script | JavaScript (MV3) | Detects LeetCode problem page, injects sidebar HTML/CSS, captures problem slug |
+| Popup | HTML + CSS + JS | Renders dashboard: mastery scores, weak spot alerts, streak |
+| Background Worker | JavaScript (MV3) | Routes messages between content script/popup and backend API |
+| LeetCode Service | FastAPI + httpx | Queries LeetCode GraphQL for problem data, caches in SQLite |
+| AI Service | FastAPI + Google Generative AI SDK | Manages conversation history, sends prompts to Gemini, enforces interviewer persona |
+| Session Service | FastAPI + SQLite | Logs session start/end, hints used, outcome |
+| Analytics Service | FastAPI + SQLite | Computes mastery scores, detects weak spots |
+| SQLite Database | SQLite3 | Persists all user data locally |
+
+### 5.3 AI Interviewer Behavior
+
+The AI is given a strict system prompt that enforces these rules:
+
+```
+You are a technical interviewer at a top tech company.
+The candidate is attempting: {problem_title} (Difficulty: {difficulty}, Pattern: {pattern}).
+
+Rules:
+- NEVER give the solution or write code
+- Ask clarifying questions about their approach
+- Ask about time and space complexity
+- Challenge their assumptions
+- If they are stuck, ask guiding questions (don't reveal answers)
+- Only provide a hint if the user explicitly says "give me a hint"
+- Keep responses concise (2-3 sentences max per turn)
+```
+
+---
+
+## 6. Data Models
+
+### 6.1 Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    PROBLEMS {
+        int id PK
+        string slug UK
+        string title
+        string difficulty
+        string pattern_tags
+        datetime fetched_at
+    }
+
+    SESSIONS {
+        int id PK
+        int problem_id FK
+        string pattern
+        datetime started_at
+        datetime ended_at
+        int time_taken_seconds
+        int hints_used
+        string outcome
+    }
+
+    PATTERN_MASTERY {
+        int id PK
+        string pattern_name UK
+        int problems_attempted
+        int problems_succeeded
+        float mastery_score
+        datetime last_practiced
+    }
+
+    PROBLEMS ||--o{ SESSIONS : "attempted in"
+    PATTERN_MASTERY ||--o{ SESSIONS : "tracked through"
+```
+
+### 6.2 Table Definitions
+
+**problems**
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER PK | Auto-increment |
+| slug | TEXT UNIQUE | LeetCode URL slug e.g. `two-sum` |
+| title | TEXT | Display title |
+| difficulty | TEXT | Easy / Medium / Hard |
+| pattern_tags | TEXT | JSON array of tags e.g. `["Array","Hash Table"]` |
+| fetched_at | DATETIME | When data was cached |
+
+**sessions**
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER PK | Auto-increment |
+| problem_id | INTEGER FK | References problems.id |
+| pattern | TEXT | Primary pattern for this session |
+| started_at | DATETIME | Session start timestamp |
+| ended_at | DATETIME | Session end timestamp |
+| time_taken_seconds | INTEGER | Duration |
+| hints_used | INTEGER | Number of times user asked for hint |
+| outcome | TEXT | `success` / `partial` / `failed` |
+
+**pattern_mastery**
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER PK | Auto-increment |
+| pattern_name | TEXT UNIQUE | e.g. `Sliding Window` |
+| problems_attempted | INTEGER | Total attempts |
+| problems_succeeded | INTEGER | Successful outcomes |
+| mastery_score | REAL | Computed 0–100 |
+| last_practiced | DATETIME | Most recent session timestamp |
+
+### 6.3 Mastery Score Formula
+
+```
+mastery_score = (problems_succeeded / problems_attempted) × 100
+             × recency_weight
+
+where recency_weight:
+  - days_since < 3  → 1.0
+  - days_since 3–7  → 0.85
+  - days_since 7–14 → 0.65
+  - days_since > 14 → 0.4
+```
+
+---
+
+## 7. API Specification
+
+Base URL: `http://localhost:8000`
+
+### 7.1 Endpoints
+
+| Method | Endpoint | Description | Request Body | Response |
+|--------|----------|-------------|--------------|----------|
+| GET | `/problem/{slug}` | Fetch + cache problem data | — | `{id, title, difficulty, pattern_tags}` |
+| POST | `/chat` | Send a message to AI interviewer | `{message, history, problem_context}` | `{reply}` |
+| POST | `/session/start` | Begin a new session | `{problem_id, pattern}` | `{session_id, started_at}` |
+| POST | `/session/end` | End a session | `{session_id, hints_used, outcome}` | `{success}` |
+| GET | `/mastery` | Get all pattern mastery scores | — | `[{pattern, score, last_practiced}]` |
+| GET | `/weakspots` | Get current weak spot alerts | — | `[{pattern, score, days_since, reason}]` |
+| GET | `/stats` | Get summary stats for popup | — | `{total_sessions, streak, weakspot_count}` |
+
+### 7.2 Example Payloads
+
+**POST /chat — Request**
+```json
+{
+  "message": "I think I can use a hashmap here",
+  "history": [
+    {"role": "assistant", "content": "Walk me through your initial approach."},
+    {"role": "user", "content": "I think I can use a hashmap here"}
+  ],
+  "problem_context": {
+    "title": "Two Sum",
+    "difficulty": "Easy",
+    "pattern": "Hash Table"
+  }
+}
+```
+
+**POST /chat — Response**
+```json
+{
+  "reply": "Good instinct. What exactly would you store as the key and value in that hashmap, and why?"
+}
+```
+
+**GET /weakspots — Response**
+```json
+[
+  {
+    "pattern": "Dynamic Programming",
+    "mastery_score": 32.0,
+    "days_since": 9,
+    "reason": "Low mastery score (32) + not practiced in 9 days"
+  },
+  {
+    "pattern": "Binary Search",
+    "mastery_score": 61.0,
+    "days_since": 15,
+    "reason": "Not practiced in 15 days"
+  }
+]
+```
+
+---
+
+## 8. User Flows
+
+### 8.1 Primary Flow — Solving a Problem
+
+```mermaid
+flowchart TD
+    A([User opens a LeetCode problem]) --> B[Extension detects /problems/ URL]
+    B --> C[Content script extracts slug from URL]
+    C --> D[Background worker calls GET /problem/slug]
+    D --> E[Backend fetches from LeetCode GraphQL]
+    E --> F[Problem cached in SQLite]
+    F --> G[Sidebar injected into page]
+    G --> H[User clicks Start Session]
+    H --> I[POST /session/start called]
+    I --> J[AI asks opening question]
+    J --> K{User interacts}
+    K -->|Types response| L[POST /chat called]
+    L --> M[AI replies with follow-up]
+    M --> K
+    K -->|Asks for hint| N[Hint flagged, hint_count++]
+    N --> L
+    K -->|Ends session| O[User selects outcome]
+    O --> P[POST /session/end called]
+    P --> Q[Mastery scores updated]
+    Q --> R{Weak spot detected?}
+    R -->|Yes| S[Badge count updated on icon]
+    R -->|No| T[Session complete]
+    S --> T
+```
+
+### 8.2 Dashboard Flow
+
+```mermaid
+flowchart TD
+    A([User clicks extension icon]) --> B[Popup opens]
+    B --> C[GET /stats called]
+    B --> D[GET /mastery called]
+    B --> E[GET /weakspots called]
+    C --> F[Render: sessions, streak]
+    D --> G[Render: pattern mastery bars]
+    E --> H{Any weak spots?}
+    H -->|Yes| I[Render alert cards with pattern + reason]
+    H -->|No| J[Render: All patterns healthy]
+```
+
+---
+
+## 9. Constraints and Assumptions
+
+| # | Constraint / Assumption |
+|---|------------------------|
+| 1 | Backend runs locally on the user's machine — no cloud deployment |
+| 2 | LeetCode GraphQL API is unofficial and may change without notice |
+| 3 | Gemini API free tier rate limits may throttle heavy usage |
+| 4 | SQLite data is local only — no sync across devices |
+| 5 | User must manually start the Python backend before using the extension |
+| 6 | Extension operates only on `leetcode.com/problems/*` pages |
+| 7 | Outcome (success/partial/fail) is self-assessed by the user at session end |
+| 8 | A single primary pattern per problem is derived from the first LeetCode tag |
+
+---
+
+*End of SRS Document*
